@@ -1,6 +1,8 @@
 
 
 import numpy as np
+import pandas as pd # NEW
+from sklearn.metrics import classification_report # NEW
 import os
 from dataPreparation import dataMaker, outputPretify
 from models import NER
@@ -81,6 +83,49 @@ def main():
                 Full, Partial = showResults(X_test, pred_labels)
                 print("Fully detected skills are: ", Full)
                 print("Partially detected skills are: ", Partial)
+
+    elif config['Choice'] == 4:
+        data = dataMaker(config)
+        if os.path.isfile(config['Path_to_labeled_testset']):
+            if os.path.isfile(config['Path_to_Pickled_Idx']): # it can also be 'Path_to_Pickled_Idx_full'
+                word2idx, idx2word, tag2idx, idx2tag , _ = dataMaker.loadPickledIndecies(config['Path_to_Pickled_Idx'])
+                if config['use_pretrainedWE']:
+                    Embedding_weight = data.processPretrainedWE(word2idx)
+                else:
+                    Embedding_weight = None  
+                model_obj = NER(config, nWords = len(word2idx), nTags = len(tag2idx),Embedding_weight=Embedding_weight)
+                model = model_obj.creatModel()
+                model.load_weights(config['path_to_Best_Trained_model'])
+
+                # if  os.path.isfile(config['Path_to_Pickled_data_TrainTest']):
+                #     data_obj = dataMaker.loadPickledData(config['Path_to_Pickled_data_TrainTest'])
+                #     X_train, X_test, y_train, y_test  = data_obj['X_train'], data_obj['X_test'], data_obj['y_train'], data_obj['y_test']
+                # else:
+                #     X_train, X_test, y_train, y_test = data.makeData(word2idx, tag2idx)
+
+                X_test, y_test = data.makeData(word2idx, tag2idx)
+
+                print('number of test samples is: ', len(X_test))
+                
+                test_pred = NER.makePrediction(model,X_test)
+                pred_labels = NER.pred2label(test_pred,idx2tag)
+                test_labels = NER.pred2label(y_test,idx2tag)
+                NER.evaluate(test_labels,pred_labels)
+
+                print()
+                print([idx2word[x] for y in X_test for x in y][:5])
+                print([x for y in test_labels for x in y][:5])
+                print([x for y in pred_labels for x in y][:5])
+
+                output_df = pd.DataFrame(
+                    {
+                        'word': [idx2word[x] for y in X_test for x in y],
+                        'true_label': [x for y in test_labels for x in y],
+                        'pred_labsl': [x for y in pred_labels for x in y],
+                    }
+                )
+
+                output_df[output_df.word != '__pad__'].to_csv(config['Path_to_output_data'], index=False)
         
         else:
             print('Check the indices pickle file!')

@@ -1,5 +1,7 @@
+from types import new_class
 import numpy as np
-from seqeval.metrics import precision_score, recall_score, f1_score, classification_report
+from seqeval.metrics import precision_score, recall_score, f1_score
+from sklearn.metrics import classification_report
 from sklearn_crfsuite.metrics import flat_classification_report
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = "3"
@@ -113,12 +115,17 @@ class NER(object):
         return out
     @staticmethod
     def evaluate(test_labels,pred_labels):
+        new_classes = list(set(np.unique(np.union1d(pred_labels, test_labels))) - {'O'})
+        print(type(pred_labels))
+        print(type(test_labels))
+        print(type(new_classes))
+        print(new_classes)
         print("F1-score: {:.1%}".format(f1_score(test_labels, pred_labels)))
         print("Precision-score: {:.1%}".format(precision_score(test_labels, pred_labels)))
         print("Recall-score: {:.1%}".format(recall_score(test_labels, pred_labels)))
         print('************************')
         print('************************')
-        report = flat_classification_report(y_pred=pred_labels, y_true=test_labels)
+        report = flat_classification_report(y_pred=pred_labels, y_true=test_labels, labels=new_classes)
         print(report)
 
 

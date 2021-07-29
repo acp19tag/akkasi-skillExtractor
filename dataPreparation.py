@@ -29,6 +29,10 @@ class dataMaker(object):
                 self.trainSentences= self.createTrain() 
             else:
                 pass
+
+        elif self.config['Choice'] == 4:
+            self.testSentences= self.createTest() 
+
             
         else:
             pass   
@@ -51,6 +55,18 @@ class dataMaker(object):
     def createTrain(self):
         sentences = self.makeSentences()
         return sentences
+
+    def createTest(self): # NEW
+        df = pd.read_csv(self.config['Path_to_labeled_testset'],sep='\t' ,encoding='utf-8',error_bad_lines=True,keep_default_na=False)
+        data = df[['sentence_idx','word','tag']]
+        agg_func = lambda s: [(w,t) for w,t in zip (s['word'].values.tolist(),s['tag'].values.tolist())]
+        grouped = data.groupby('sentence_idx').apply(agg_func)
+        sentences = [s for s in grouped]
+        sentences.sort()
+        sentences = list(sentences for sentences,_ in itertools.groupby(sentences))
+        print('Total number of sentences in our dataset: ', len(sentences))
+        return sentences
+
     def indexes(self):
         tags = set()
         words = set()
@@ -82,7 +98,7 @@ class dataMaker(object):
         
     def processPretrainedWE(self, word2idx):
         embedding_index = {}
-        with open(self.config['path_to_pretrained_WE'],'r') as f:
+        with open(self.config['path_to_pretrained_WE'],'r', encoding="utf8") as f:
             for line in f.readlines()[1:]:
                 values = line.split() 
                 word = values[0] 
@@ -133,6 +149,16 @@ class dataMaker(object):
             with open(self.config['Path_to_Pickled_data_full'], 'wb') as f:
                 pickle.dump(data_obj, f)
             return X_train,  y_train
+
+        if self.config['Choice']==4:
+            X = [[word2idx[w[0].lower()] if w[0].lower() in word2idx else word2idx['UNK'] for w in s] for s in self.testSentences]
+            X_test = pad_sequences(maxlen= self.config['maxlen'], sequences= X, padding='post',truncating='post',value = word2idx['__pad__'])
+            y = [[tag2idx[w[1]] for w in s] for s in self.testSentences]
+            y_test = pad_sequences(maxlen=self.config['maxlen'], sequences= y, padding='post',truncating='post',value=tag2idx['O'])
+            data_obj = {'X_test':X_test, 'y_test':y_test}
+            with open(self.config['Path_to_Pickled_data_full'], 'wb') as f:
+                pickle.dump(data_obj, f)
+            return X_test,  y_test
     
 def outputPretify(TestSentences, PredictedEntities,word2idx,idx2word):
     SentLen = len(TestSentences[0])
